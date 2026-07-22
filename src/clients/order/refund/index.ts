@@ -1,20 +1,22 @@
 /**
- * Refund order operation -- sends `POST /v1/orders/{id}/refund`.
+ * Refund order operation.
  *
- * @module clients/order/refund
+ * Sends a `POST /v1/orders/:id/refund` request to perform a full or partial
+ * refund of transactions associated with an order.
+ *
+ * @module order/refund
  */
-
-import { RestClient } from '@src/utils/restClient';
-import { OrderRefundClient } from './types';
-import { OrderResponse } from '../commonTypes';
+import { RestClient } from '@utils/restClient';
+import type { OrderRefundClient } from './types';
+import type { OrderResponse } from '../commonTypes';
 
 /**
- * Refund an order (total or partial).
+ * Refund an order either fully or partially.
  *
- * Omit the body for a full refund of all transactions. Provide
- * specific transaction IDs and amounts for a partial refund.
+ * For full refund, send an empty request body.
+ * For partial refund, include transactions array with specific transaction IDs and amounts.
  *
- * @returns The updated order including the new refund records.
+ * @returns The updated order with refund information.
  */
 export default function refund({ id, body, config }: OrderRefundClient): Promise<OrderResponse> {
 	return RestClient.fetch<OrderResponse>(
@@ -22,9 +24,9 @@ export default function refund({ id, body, config }: OrderRefundClient): Promise
 		{
 			method: 'POST',
 			headers: {
-				'Authorization': `Bearer ${config.accessToken}`
+				'Authorization': `Bearer ${config.accessToken}`,
 			},
-			body: JSON.stringify(body),
+			body: body ? JSON.stringify(body) : undefined,
 			...config.options
 		}
 	);
