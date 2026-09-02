@@ -1,12 +1,13 @@
 /**
- * Order API client -- facade for the MercadoPago Orders v1 endpoints.
+ * Order API client for the MercadoPago Node.js SDK.
  *
- * Exposes every order lifecycle operation (create, get, process, capture,
- * cancel, refund, search) as well as transaction-level management
- * (create, update, delete) on an existing order.
+ * Provides a high-level facade for managing orders through the `/v1/orders`
+ * resource. Supports creating, retrieving, updating, processing, capturing,
+ * cancelling, and refunding orders, as well as managing order transactions
+ * and simulating order events.
  *
+ * @see {@link https://www.mercadopago.com/developers/en/reference/online-payments/orders MercadoPago Orders API reference}
  * @module clients/order
- * @see {@link https://mercadopago.com/developers/en/docs/order/landing Orders API Documentation}
  */
 
 import create from './create';
@@ -15,37 +16,35 @@ import process from './process';
 import capture from './capture';
 import cancel from './cancel';
 import refund from './refund';
-import search from './search';
 import createTransaction from './transaction/create';
 import updateTransaction from './transaction/update';
 import deleteTransaction from './transaction/delete';
+import simulateEvent from './simulateEvent';
 
 import type { MercadoPagoConfig } from '@src/mercadoPagoConfig';
-import { OrderResponse, PaymentApiResponse, TransactionsApiResponse } from './commonTypes';
-import { OrderCreateData } from './create/types';
-import { OrderGetData } from './get/types';
-import { OrderProcessData } from './process/types';
-import { OrderCaptureData } from './capture/types';
-import { OrderCancelData } from './cancel/types';
-import { OrderRefundData } from './refund/types';
-import { OrderSearchData, OrderSearchResponse } from './search/types';
-import { OrderCreateTransactionData } from './transaction/create/types';
-import { OrderUpdateTransactionData } from './transaction/update/types';
-import { OrderDeleteTransactionData } from './transaction/delete/types';
-import { ApiResponse } from '@src/types';
+import type { OrderCreateData } from './create/types';
+import type { OrderGetData } from './get/types';
+import type { OrderProcessData } from './process/types';
+import type { OrderCaptureData } from './capture/types';
+import type { OrderCancelData } from './cancel/types';
+import type { OrderRefundData } from './refund/types';
+import type { OrderResponse } from './commonTypes';
+import type { OrderTransactionCreateData } from './transaction/create/types';
+import type { OrderTransactionUpdateData } from './transaction/update/types';
+import type { OrderTransactionDeleteData } from './transaction/delete/types';
+import type { OrderTransactionResponse } from './transaction/commonTypes';
+import type { OrderSimulateEventData } from './simulateEvent/types';
 
 /**
  * Client for the MercadoPago Orders API.
  *
- * Each method maps 1-to-1 with an Orders REST endpoint and returns a
- * promise that resolves to the API response. Per-call `requestOptions`
- * are merged with the global {@link MercadoPagoConfig} options so
- * callers can override timeouts, idempotency keys, etc.
+ * Exposes operations for creating and managing orders, including order
+ * transactions and event simulation for testing purposes.
  *
- * @see {@link https://mercadopago.com/developers/en/docs/order/landing Documentation}
+ * @see {@link https://www.mercadopago.com/developers/en/reference/online-payments/orders API reference}
  */
 export class Order {
-	/** SDK configuration (access token, default options). */
+	/** SDK configuration providing credentials and HTTP options. */
 	private config: MercadoPagoConfig;
 
 	constructor(mercadoPagoConfig: MercadoPagoConfig) {
@@ -53,11 +52,9 @@ export class Order {
 	}
 
 	/**
-	 * Create a new order.
+	 * Create a new order in MercadoPago.
 	 *
-	 * Sends a `POST /v1/orders` request with the provided order body.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/create.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/create.ts Usage Example}.
 	 */
 	create({ body, requestOptions }: OrderCreateData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -65,11 +62,9 @@ export class Order {
 	}
 
 	/**
-	 * Retrieve an existing order by its ID.
+	 * Retrieve a single order by its unique identifier.
 	 *
-	 * Sends a `GET /v1/orders/{id}` request.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/get.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/get.ts Usage Example}.
 	 */
 	get({ id, requestOptions }: OrderGetData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -77,12 +72,9 @@ export class Order {
 	}
 
 	/**
-	 * Process an order, triggering payment execution.
+	 * Process an order (manual processing mode).
 	 *
-	 * Sends a `POST /v1/orders/{id}/process` request. The order must
-	 * already contain at least one payment transaction.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/process.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/process.ts Usage Example}.
 	 */
 	process({ id, requestOptions }: OrderProcessData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -90,12 +82,9 @@ export class Order {
 	}
 
 	/**
-	 * Capture an authorized order, confirming the payment settlement.
+	 * Capture a previously authorized order.
 	 *
-	 * Sends a `POST /v1/orders/{id}/capture` request. Only applicable
-	 * to orders created with `capture_mode: "manual"`.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/capture.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/capture.ts Usage Example}.
 	 */
 	capture({ id, requestOptions }: OrderCaptureData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -103,11 +92,9 @@ export class Order {
 	}
 
 	/**
-	 * Cancel an order that has not yet been captured.
+	 * Cancel a pending order.
 	 *
-	 * Sends a `POST /v1/orders/{id}/cancel` request.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/cancel.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/cancel.ts Usage Example}.
 	 */
 	cancel({ id, requestOptions }: OrderCancelData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -115,14 +102,9 @@ export class Order {
 	}
 
 	/**
-	 * Refund an order (total or partial).
+	 * Refund an order partially or totally.
 	 *
-	 * Sends a `POST /v1/orders/{id}/refund` request. Omit the body
-	 * for a full refund; provide specific transaction amounts for a
-	 * partial refund.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/refundTotal.ts Total Refund Example}
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/refundPartial.ts Partial Refund Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/refund.ts Usage Example}.
 	 */
 	refund({ id, body, requestOptions }: OrderRefundData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -130,53 +112,43 @@ export class Order {
 	}
 
 	/**
-	 * Search orders by date range and optional filters.
+	 * Create a new transaction for an order.
 	 *
-	 * Sends a `GET /v1/orders` request with query parameters built from
-	 * the provided search options. Returns a paginated result set.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/search.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/transaction/create.ts Usage Example}.
 	 */
-	search(searchData?: OrderSearchData): Promise<OrderSearchResponse> {
-		const options = searchData?.options;
-		const requestOptions = searchData?.requestOptions;
-		this.config.options = { ...this.config.options, ...requestOptions };
-		return search({ options, config: this.config });
-	}
-
-	/**
-	 * Add a payment transaction to an existing order.
-	 *
-	 * Sends a `POST /v1/orders/{id}/transactions` request.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/transaction/create.ts Usage Example}
-	 */
-	createTransaction({ id, body, requestOptions }: OrderCreateTransactionData): Promise<TransactionsApiResponse> {
+	createTransaction({ id, body, requestOptions }: OrderTransactionCreateData): Promise<OrderTransactionResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return createTransaction({ id, body, config: this.config });
 	}
 
 	/**
-	 * Update an existing payment transaction within an order.
+	 * Update an existing transaction on an order.
 	 *
-	 * Sends a `PUT /v1/orders/{id}/transactions/{transactionId}` request.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/transaction/update.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/transaction/update.ts Usage Example}.
 	 */
-	updateTransaction({ id, transactionId, body, requestOptions }: OrderUpdateTransactionData): Promise<PaymentApiResponse> {
+	updateTransaction({ id, transactionId, body, requestOptions }: OrderTransactionUpdateData): Promise<OrderTransactionResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return updateTransaction({ id, transactionId, body, config: this.config });
 	}
 
 	/**
-	 * Remove a payment transaction from an order.
+	 * Delete a transaction from an order.
 	 *
-	 * Sends a `DELETE /v1/orders/{id}/transactions/{transactionId}` request.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/order/transaction/delete.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/transaction/delete.ts Usage Example}.
 	 */
-	deleteTransaction({ id, transactionId, requestOptions }: OrderDeleteTransactionData): Promise<ApiResponse> {
+	deleteTransaction({ id, transactionId, requestOptions }: OrderTransactionDeleteData): Promise<void> {
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return deleteTransaction({ id, transactionId, config: this.config });
+	}
+
+	/**
+	 * Simulate an event on an order to change its status.
+	 * This endpoint is only enabled for inStore point orders.
+	 *
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/examples/order/simulateEvent.ts Usage Example}.
+	 */
+	simulateEvent({ orderId, body, requestOptions }: OrderSimulateEventData): Promise<OrderResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return simulateEvent({ orderId, body, config: this.config });
 	}
 }
