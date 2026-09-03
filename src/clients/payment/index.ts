@@ -1,38 +1,39 @@
 /**
- * Payment API client -- facade for the MercadoPago Payments v1 endpoints.
+ * Payment API client for the MercadoPago Node.js SDK.
  *
- * Provides high-level methods to create, retrieve, search, capture, and
- * cancel payments.  Each method delegates to a dedicated operation module
- * that calls the underlying {@link RestClient}.
+ * Provides a high-level facade for managing payments through the
+ * `/v1/payments` resource. Supports creating payments, retrieving
+ * payment details, searching payments, capturing authorized payments,
+ * and cancelling payments.
  *
+ * @see {@link https://www.mercadopago.com/developers/en/reference/payments/_payments/post MercadoPago Payments API reference}
  * @module clients/payment
- * @see {@link https://www.mercadopago.com/developers/en/reference/online-payments/checkout-api-payments/create-payment/post Payments API reference}
  */
-import capture from './capture';
-import search from './search';
-import cancel from './cancel';
-import create from './create';
-import get from './get';
 
-import type { PaymentResponse } from './commonTypes';
-import type { PaymentSearchData, PaymentSearch } from './search/types';
+import get from './get';
+import create from './create';
+import search from './search';
+import capture from './capture';
+import cancel from './cancel';
+
 import type { MercadoPagoConfig } from '@src/mercadoPagoConfig';
+import type { PaymentResponse } from './commonTypes';
+import type { PaymentGetData } from './get/types';
 import type { PaymentCreateData } from './create/types';
+import type { PaymentSearchData, PaymentSearchResponse } from './search/types';
 import type { PaymentCaptureData } from './capture/types';
 import type { PaymentCancelData } from './cancel/types';
-import type { PaymentGetData } from './get/types';
 
 /**
- * Client that exposes every operation available on the MercadoPago Payments API.
+ * Client for the MercadoPago Payments API.
  *
- * Instantiate with a {@link MercadoPagoConfig} that holds the access token and
- * optional global request settings.  Per-call `requestOptions` are merged on
- * top of the global configuration for each request.
+ * Exposes operations for creating, retrieving, searching, capturing,
+ * and cancelling payments.
  *
- * @see {@link https://www.mercadopago.com/developers/en/reference Payments API reference}
+ * @see {@link https://www.mercadopago.com/developers/en/reference/payments/_payments/post API reference}
  */
 export class Payment {
-	/** SDK configuration (access token, timeouts, headers). */
+	/** SDK configuration providing credentials and HTTP options. */
 	private config: MercadoPagoConfig;
 
 	constructor(mercadoPagoConfig: MercadoPagoConfig) {
@@ -40,51 +41,12 @@ export class Payment {
 	}
 
 	/**
-	 * Search payments that belong to the authenticated collector.
+	 * Create a new payment in MercadoPago.
 	 *
-	 * Supports pagination, sorting, date-range filtering, and arbitrary
-	 * query-parameter filters forwarded to `GET /v1/payments/search`.
+	 * Sends a POST request to `/v1/payments` to create a payment with
+	 * the specified payment method, amount, and payer information.
 	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/payment/search.ts Usage Example}
-	 */
-	search(paymentSearchOptions: PaymentSearchData = {}): Promise<PaymentSearch> {
-		const { options, requestOptions } = paymentSearchOptions;
-		this.config.options = { ...this.config.options, ...requestOptions };
-		return search({ options, config: this.config });
-	}
-
-	/**
-	 * Cancel a pending or in-process payment by setting its status to `cancelled`.
-	 *
-	 * Only payments that have not yet been approved can be cancelled.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/payment/cancel.ts Usage Example}
-	 */
-	cancel({ id, requestOptions }: PaymentCancelData): Promise<PaymentResponse> {
-		this.config.options = { ...this.config.options, ...requestOptions };
-		return cancel({ id, config: this.config } );
-	}
-
-	/**
-	 * Capture a previously authorized (pre-auth) payment.
-	 *
-	 * When the payment was created with `capture: false`, this method finalizes
-	 * the charge.  An optional `transaction_amount` allows partial captures.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/payment/capture.ts Usage Example}
-	 */
-	capture({ id, transaction_amount, requestOptions }: PaymentCaptureData): Promise<PaymentResponse> {
-		this.config.options = { ...this.config.options, ...requestOptions };
-		return capture({ id, transaction_amount, config: this.config });
-	}
-
-	/**
-	 * Create a new payment via `POST /v1/payments`.
-	 *
-	 * The request body must contain at least a `transaction_amount`, a `payer`,
-	 * and a `payment_method_id` (or a card `token`).
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/payment/create.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/e2e/payment/create.spec.ts Usage Example}.
 	 */
 	create({ body, requestOptions }: PaymentCreateData): Promise<PaymentResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
@@ -94,12 +56,44 @@ export class Payment {
 	/**
 	 * Retrieve a single payment by its unique identifier.
 	 *
-	 * Calls `GET /v1/payments/:id` and returns the full payment resource.
-	 *
-	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/src/examples/payment/get.ts Usage Example}
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/e2e/payment/get.spec.ts Usage Example}.
 	 */
 	get({ id, requestOptions }: PaymentGetData): Promise<PaymentResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
-		return get({ id, config: this.config } );
+		return get({ id, config: this.config });
+	}
+
+	/**
+	 * Search for payments using optional filters and pagination.
+	 *
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/e2e/payment/search.spec.ts Usage Example}.
+	 */
+	search(paymentSearchOptions: PaymentSearchData = {}): Promise<PaymentSearchResponse> {
+		const { options, requestOptions } = paymentSearchOptions;
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return search({ options, config: this.config });
+	}
+
+	/**
+	 * Capture a previously authorized payment.
+	 *
+	 * Used in two-step payment flows where the payment is first authorized
+	 * and then captured separately. Can optionally capture a partial amount.
+	 *
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/e2e/payment/capture.spec.ts Usage Example}.
+	 */
+	capture({ id, transaction_amount, requestOptions }: PaymentCaptureData): Promise<PaymentResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return capture({ id, transaction_amount, config: this.config });
+	}
+
+	/**
+	 * Cancel a pending payment by setting its status to cancelled.
+	 *
+	 * @see {@link https://github.com/mercadopago/sdk-nodejs/blob/master/e2e/payment/cancel.spec.ts Usage Example}.
+	 */
+	cancel({ id, requestOptions }: PaymentCancelData): Promise<PaymentResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return cancel({ id, config: this.config });
 	}
 }
