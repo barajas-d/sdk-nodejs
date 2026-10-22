@@ -9,6 +9,7 @@
  */
 
 import get from './get';
+import getInstallments from './getInstallments';
 
 import type { MercadoPagoConfig } from '@src/mercadoPagoConfig';
 import type { PaymentMethodResponse } from './get/types';

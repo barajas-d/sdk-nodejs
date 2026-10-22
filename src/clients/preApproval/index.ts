@@ -11,6 +11,7 @@
  */
 
 import create from './create';
+import exportSubscriptions from './exportSubscriptions';
 import get from './get';
 import search from './search';
 import update from './update';
