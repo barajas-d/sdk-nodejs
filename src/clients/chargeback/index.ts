@@ -8,10 +8,12 @@
  */
 import get from './get';
 import search from './search';
+import updateChargeback from './updateChargeback';
 
 import type { ChargebackResponse } from './commonTypes';
 import type { ChargebackGetData } from './get/types';
 import type { ChargebackSearchData, ChargebackSearchResponse } from './search/types';
+import type { ChargebackUpdateChargebackData, ChargebackUpdateChargebackResponse } from './updateChargeback/types';
 
 import type { MercadoPagoConfig } from '@src/mercadoPagoConfig';
 

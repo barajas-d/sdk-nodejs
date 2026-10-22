@@ -17,6 +17,10 @@ interface RestClientConfig extends Options {
 	queryParams?: Record<string, string | number>;
 	/** Number of retry attempts for HTTP 5xx errors (default: {@link AppConfig.DEFAULT_RETRIES}). */
 	retries?: number;
+	/** Allow fetch to set the multipart boundary for a FormData body. */
+	isMultipart?: boolean;
+	/** Opt in to a raw binary or text response instead of JSON. */
+	responseType?: 'arrayBuffer' | 'text';
 }
 
 function headersToRecord(headers: Headers): Record<string, string[]> {
@@ -118,6 +122,8 @@ class RestClient {
 			timeout = AppConfig.DEFAULT_TIMEOUT,
 			idempotencyKey = RestClient.generateIdempotencyKey(),
 			queryParams,
+			isMultipart = false,
+			responseType,
 			method = 'GET',
 			retries = AppConfig.DEFAULT_RETRIES,
 			corporationId,
@@ -179,7 +185,9 @@ class RestClient {
 					} as T;
 				}
 
-				const data = await response.json();
+				const data = responseType
+					? { body: responseType === 'arrayBuffer' ? await response.arrayBuffer() : await response.text() }
+					: await response.json();
 				const api_response = {
 					status: response.status,
 					headers: headersToRecord(response.headers),
