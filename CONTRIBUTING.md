@@ -78,3 +78,4 @@ Your basic steps to get going:
 
 If taking too much time to deliver code, **always** [rebase](https://git-scm.com/docs/git-rebase) towards `master` before
 asking for a review, and avoid reverse merge commits.
+<!-- smoke test: ix-tools-ia + spec-agent-generator pipeline (2026-10-30). Safe to close this PR. -->
