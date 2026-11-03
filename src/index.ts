@@ -43,6 +43,8 @@ export { PreApproval } from './clients/preApproval';
 export { PreApprovalPlan } from './clients/preApprovalPlan';
 /** Point (Smart POS) client — manages in-person payment intents and devices. */
 export { Point } from './clients/point';
+/** POS client — searches registered points of sale. */
+export { POS } from './clients/pos';
 /** Preference client — creates and manages Checkout Pro payment preferences. */
 export { Preference } from './clients/preference';
 /** OAuth client — handles authorization code exchange, token refresh, and auth URL generation. */
