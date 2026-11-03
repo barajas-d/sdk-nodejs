@@ -8,10 +8,12 @@
  */
 import get from './get';
 import search from './search';
+import updateChargeback from './updateChargeback';
 
 import type { ChargebackResponse } from './commonTypes';
 import type { ChargebackGetData } from './get/types';
 import type { ChargebackSearchData, ChargebackSearchResponse } from './search/types';
+import type { ChargebackUpdateChargebackData, ChargebackUpdateChargebackResponse } from './updateChargeback/types';
 
 import type { MercadoPagoConfig } from '@src/mercadoPagoConfig';
 
@@ -37,5 +39,13 @@ export class Chargeback {
 		const { options, requestOptions } = chargebackSearchOptions;
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return search({ options, config: this.config });
+	}
+
+	/**
+	 * Submit chargeback documentation.
+	 */
+	updateChargeback({ id, body, requestOptions }: ChargebackUpdateChargebackData): Promise<ChargebackUpdateChargebackResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return updateChargeback({ id, body, config: this.config });
 	}
 }
