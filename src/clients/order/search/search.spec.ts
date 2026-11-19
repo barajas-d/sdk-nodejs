@@ -13,6 +13,8 @@ describe('Search Order', () => {
 			end_date: '2026-01-31T23:59:59Z',
 			type: 'online',
 			page: 1,
+			limit: 10,
+			offset: 20,
 		};
 		const mockSearchResponse: OrderSearchResponse = {
 			data: [

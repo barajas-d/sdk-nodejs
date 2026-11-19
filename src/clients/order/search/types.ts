@@ -55,6 +55,10 @@ export declare type OrderSearchRequest = {
 	page?: number;
 	/** Number of results per page. */
 	page_size?: number;
+	/** Maximum number of results to return. */
+	limit?: number;
+	/** Zero-based offset into the matching results. */
+	offset?: number;
 	/** Field to sort results by (e.g. `created_date`). */
 	sort_by?: string;
 	/** Sort direction: `asc` or `desc`. */
