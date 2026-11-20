@@ -412,3 +412,27 @@ describe('Create Order — Checkout PRO', () => {
 		);
 	});
 });
+
+describe('Order.create payment response', () => {
+	test('returns the taxes_amount string from a 201 payment response', async () => {
+		const { Order } = await import('..');
+		const config = new MercadoPagoConfig({ accessToken: 'access_token' });
+		const body: CreateOrderRequest = {
+			type: 'online',
+			total_amount: '100.00',
+			transactions: { payments: [{ amount: '100.00' }] }
+		};
+		const spyFetch = jest.spyOn(RestClient, 'fetch').mockResolvedValue({
+			api_response: { status: 201, headers: ['Content-Type', ['application/json']] },
+			transactions: { payments: [{ amount: '100.00', taxes_amount: '5.00' }] }
+		});
+
+		const response = await new Order(config).create({ body });
+
+		expect(spyFetch).toHaveBeenCalledWith('/v1/orders', expect.objectContaining({
+			method: 'POST',
+			body: JSON.stringify(body)
+		}));
+		expect(response.transactions.payments[0].taxes_amount).toBe('5.00');
+	});
+});
