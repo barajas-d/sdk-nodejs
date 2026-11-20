@@ -284,6 +284,8 @@ export declare type PaymentResponse = {
 	id?: string;
 	/** Integrator-assigned reference for this specific payment. */
 	reference_id?: string;
+	/** Total tax amount for this payment as a decimal string. */
+	taxes_amount?: string;
 	/** Current payment status (e.g. `approved`, `rejected`, `pending`). */
 	status?: string;
 	/** Granular reason for the current status (e.g. `accredited`, `cc_rejected_other_reason`). */
