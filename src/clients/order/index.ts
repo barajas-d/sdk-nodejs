@@ -12,6 +12,7 @@
 import create from './create';
 import get from './get';
 import process from './process';
+import events from './events';
 import capture from './capture';
 import cancel from './cancel';
 import refund from './refund';
@@ -25,6 +26,7 @@ import { OrderResponse, PaymentApiResponse, TransactionsApiResponse } from './co
 import { OrderCreateData } from './create/types';
 import { OrderGetData } from './get/types';
 import { OrderProcessData } from './process/types';
+import { OrderEventsData, OrderEventsResponse } from './events/types';
 import { OrderCaptureData } from './capture/types';
 import { OrderCancelData } from './cancel/types';
 import { OrderRefundData } from './refund/types';
@@ -87,6 +89,17 @@ export class Order {
 	process({ id, requestOptions }: OrderProcessData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return process({ id, config: this.config });
+	}
+
+	/**
+	 * Simulate a Point test order's final status.
+	 *
+	 * Sends a `POST /v1/orders/{id}/events` request. Success returns
+	 * HTTP 204 No Content with only the SDK response metadata.
+	 */
+	events({ id, body, requestOptions }: OrderEventsData): Promise<OrderEventsResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return events({ id, body, config: this.config });
 	}
 
 	/**
