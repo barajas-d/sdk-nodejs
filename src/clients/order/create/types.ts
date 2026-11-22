@@ -79,6 +79,12 @@ export declare type CreateOrderRequest = {
 	shipment?: ShipmentRequest;
 	/** Integration metadata identifying the integrator, platform, corporation, and sponsor. */
 	integration_data?: IntegrationDataRequest;
+	/** Split 1:N receivers and their allocated amounts. */
+	splits?: OrderSplitRequest[];
+	/** Tax lines for QR orders. */
+	taxes?: OrderTaxRequest[];
+	/** Discounts for QR orders. */
+	discounts?: OrderDiscountsRequest;
 };
 
 /**
@@ -96,6 +102,12 @@ export declare type CreateOrderConfig = {
 	online?: OnlineConfigRequest;
 	/** Payment method constraints (blocked brands, max installments, interest-free ranges). */
 	payment_method?: PaymentMethodConfigRequest;
+	/** Checkout API merchant location for local payment routing. */
+	location?: OrderLocationRequest;
+	/** Point terminal configuration for Point orders. */
+	point?: { terminal_id?: string };
+	/** Point-of-sale configuration for QR orders. */
+	qr?: { external_pos_id?: string };
 };
 
 /**
@@ -129,6 +141,10 @@ export declare type OnlineConfigRequest = {
 	tracks?: Track[];
 	/** Retry policy for this order. */
 	retries?: RetriesConfig;
+	/** URL notified when the order's payment status changes. */
+	callback_url?: string;
+	/** 3-D Secure settings for online checkout. */
+	transaction_security?: TransactionSecurity;
 };
 
 /**
@@ -151,6 +167,8 @@ export declare type PaymentMethodConfigRequest = {
 export declare type TransactionsRequest = {
 	/** One or more payment entries. */
 	payments?: PaymentRequest[];
+	/** Cash-out entries for QR CA orders. */
+	cash_outs?: { amount?: string }[];
 };
 
 /**
@@ -289,4 +307,37 @@ export declare type IntegrationDataRequest = {
 export declare type SponsorRequest = {
 	/** MercadoPago user ID of the sponsoring marketplace owner. Type: string. */
 	id?: string;
+};
+
+/** Payer's location for Checkout API orders. */
+export declare type OrderLocationRequest = {
+	/** Country-prefixed state or province code (e.g. `BR-SP`). */
+	state_id?: string;
+};
+
+/** Receiver allocation for a Split 1:N order. */
+export declare type OrderSplitRequest = {
+	/** Receiver ID: owner user ID or partner consent UUID. */
+	receiver_id?: string;
+	/** Receiver role. */
+	receiver_type?: 'owner' | 'partner';
+	/** Amount assigned to this receiver as a decimal string. */
+	amount?: string;
+	/** Description of the receiver's portion. */
+	description?: string;
+};
+
+/** Tax line sent with a QR order. */
+export declare type OrderTaxRequest = {
+	payer_condition?: string;
+	type?: string;
+	value?: string;
+};
+
+/** QR order discounts grouped by payment method. */
+export declare type OrderDiscountsRequest = {
+	payment_methods?: {
+		type?: string;
+		new_total_amount?: string;
+	}[];
 };

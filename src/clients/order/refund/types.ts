@@ -41,6 +41,24 @@ export declare type OrderRefundClient = {
 export declare type RefundRequest = {
 	/** Individual transaction refund entries for partial refunds. */
 	transactions?: TransactionRefundRequest[];
+	/** Split participants to refund (Split 1:N receivers or Checkout Pro users). */
+	splits?: Split1NRefundRequest[] | CheckoutProRefundSplitRequest[];
+}
+
+/** Split 1:N receiver refund; omit amount to refund the full receiver portion. */
+export declare type Split1NRefundRequest = {
+	/** Identifier of the receiver from the split order. */
+	receiver_id: string;
+	/** Amount to refund to this receiver as a decimal string. */
+	amount?: string;
+}
+
+/** Checkout Pro split refund; omit amount to refund the full participant portion. */
+export declare type CheckoutProRefundSplitRequest = {
+	/** User ID of the split participant. */
+	user_id: number;
+	/** Amount to refund to this participant as a decimal string. */
+	amount?: string;
 }
 
 /**

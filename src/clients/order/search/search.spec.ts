@@ -2,6 +2,8 @@ import { RestClient } from '@utils/restClient';
 import { MercadoPagoConfig } from '@src/mercadoPagoConfig';
 import search from './index';
 import { OrderSearchResponse } from './types';
+import { Order } from '../index';
+import type { OrderSearchRequest } from './types';
 
 jest.mock('@utils/restClient');
 
@@ -101,5 +103,48 @@ describe('Search Order', () => {
 		expect(order.config.online.retries.allowed).toBe(false);
 		expect(order.config.payment_method.installments.interest_free.type).toBe('range');
 		expect(order.config.payment_method.installments.interest_free.values).toEqual([2, 6]);
+	});
+
+	test('should forward Checkout Pro offset and limit as query parameters, including zero', async () => {
+		const config = new MercadoPagoConfig({ accessToken: 'access_token' });
+		const options = {
+			begin_date: '2026-01-01T00:00:00Z',
+			end_date: '2026-01-02T00:00:00Z',
+			page: 1,
+			page_size: 20,
+			offset: 0,
+			limit: 10,
+		};
+		const spyFetch = jest.spyOn(RestClient, 'fetch').mockResolvedValue({ data: [], paging: { offset: '0', limit: '10' } });
+
+		await search({ options, config });
+
+		expect(spyFetch).toHaveBeenCalledWith('/v1/orders', expect.objectContaining({
+			method: 'GET',
+			queryParams: options,
+		}));
+		expect(spyFetch.mock.calls[0][1].queryParams).toEqual(options);
+	});
+
+	test('forwards typed Checkout Pro pagination through the public Order.search method with merged options', async () => {
+		const config = new MercadoPagoConfig({ accessToken: 'access_token', options: { timeout: 5000 } });
+		const options: OrderSearchRequest = {
+			begin_date: '2026-01-01T00:00:00Z',
+			end_date: '2026-01-02T00:00:00Z',
+			page: 1,
+			page_size: 20,
+			offset: 0,
+			limit: 10,
+		};
+		const spyFetch = jest.spyOn(RestClient, 'fetch').mockResolvedValue({ data: [], paging: { offset: '0', limit: '10' } });
+
+		await new Order(config).search({ options, requestOptions: { timeout: 1000 } });
+
+		expect(spyFetch).toHaveBeenCalledWith('/v1/orders', expect.objectContaining({
+			method: 'GET',
+			timeout: 1000,
+			queryParams: expect.objectContaining({ offset: 0, limit: 10, page: 1, page_size: 20 }),
+		}));
+		expect(spyFetch.mock.calls[0][1].queryParams).toEqual(options);
 	});
 });

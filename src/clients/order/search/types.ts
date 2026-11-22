@@ -55,6 +55,10 @@ export declare type OrderSearchRequest = {
 	page?: number;
 	/** Number of results per page. */
 	page_size?: number;
+	/** Number of results to skip for Checkout Pro pagination. */
+	offset?: number;
+	/** Maximum number of results per page for Checkout Pro pagination. */
+	limit?: number;
 	/** Field to sort results by (e.g. `created_date`). */
 	sort_by?: string;
 	/** Sort direction: `asc` or `desc`. */

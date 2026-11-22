@@ -13,6 +13,7 @@ import create from './create';
 import get from './get';
 import process from './process';
 import capture from './capture';
+import events from './events';
 import cancel from './cancel';
 import refund from './refund';
 import search from './search';
@@ -26,6 +27,7 @@ import { OrderCreateData } from './create/types';
 import { OrderGetData } from './get/types';
 import { OrderProcessData } from './process/types';
 import { OrderCaptureData } from './capture/types';
+import type { OrderEventsData, OrderEventsResponse } from './events/types';
 import { OrderCancelData } from './cancel/types';
 import { OrderRefundData } from './refund/types';
 import { OrderSearchData, OrderSearchResponse } from './search/types';
@@ -100,6 +102,17 @@ export class Order {
 	capture({ id, requestOptions }: OrderCaptureData): Promise<OrderResponse> {
 		this.config.options = { ...this.config.options, ...requestOptions };
 		return capture({ id, config: this.config });
+	}
+
+	/**
+	 * Simulate a final status for a Point order created with test credentials.
+	 *
+	 * Sends a `POST /v1/orders/{id}/events` request and returns HTTP metadata
+	 * for the 204 No Content response.
+	 */
+	events({ id, body, requestOptions }: OrderEventsData): Promise<OrderEventsResponse> {
+		this.config.options = { ...this.config.options, ...requestOptions };
+		return events({ id, body, config: this.config });
 	}
 
 	/**

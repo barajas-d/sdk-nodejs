@@ -21,6 +21,11 @@ import { DifferentialPricing, Phone } from '../commonTypes';
  * HTTP status and headers alongside the order payload.
  */
 export declare interface OrderResponse extends ApiResponse {
+	/**
+	 * Successful order responses share this shape across Checkout API, Checkout Pro,
+	 * Point and QR. Optional variant-specific fields are present only when returned
+	 * by that operation; payment details live in `transactions.payments`.
+	 */
 	/** Unique order identifier assigned by MercadoPago. */
 	id?: string;
 	/** Order type (e.g. `online`). */
@@ -82,7 +87,33 @@ export declare interface OrderResponse extends ApiResponse {
 	discounts?: DiscountsResponse;
 	/** Additional response metadata (e.g. QR code data). */
 	type_response?: TypeResponse;
+	/** Shipment returned for Checkout API orders. */
+	shipment?: ShipmentResponse;
 }
+
+/** Shipping details returned with a Checkout API order. */
+export declare type ShipmentResponse = {
+	mode?: string;
+	local_pickup?: boolean;
+	cost?: string;
+	free_shipping?: boolean;
+	free_methods?: { id?: number }[];
+	address?: ShipmentAddressResponse;
+};
+
+/** Delivery address returned with an order shipment. */
+export declare type ShipmentAddressResponse = {
+	zip_code?: string;
+	street_name?: string;
+	street_number?: string;
+	floor?: string;
+	apartment?: string;
+	neighborhood?: string;
+	city?: string;
+	state?: string;
+	complement?: string;
+	country?: string;
+};
 
 /**
  * Payer details as returned by the Orders API.
@@ -114,7 +145,21 @@ export declare type Config = {
 	payment_method?: PaymentMethodConfig;
 	/** Online checkout configuration (redirect URLs, differential pricing, 3DS). */
 	online?: OnlineConfig;
+	/** Point-of-sale configuration returned for Point orders. */
+	point?: PointConfigResponse;
+	/** QR checkout configuration returned for QR orders. */
+	qr?: QrConfigResponse;
 }
+
+/** Point-specific response configuration. */
+export declare type PointConfigResponse = {
+	terminal_id?: string;
+};
+
+/** QR-specific response configuration. */
+export declare type QrConfigResponse = {
+	external_pos_id?: string;
+};
 
 /**
  * Payment method constraints and installment configuration for an order.
@@ -262,6 +307,8 @@ export declare type TransactionsResponse = {
 	payments?: PaymentResponse[];
 	/** Refunds issued against payments in this order. */
 	refunds?: RefundResponse[];
+	/** Cash-out transactions returned for QR CA orders. */
+	cash_outs?: CashOutResponse[];
 	/** Chargebacks filed against payments in this order. */
 	chargebacks?: ChargebackResponse[];
 }
@@ -296,6 +343,16 @@ export declare type PaymentResponse = {
 	amount?: string;
 	/** Amount actually collected from the payer as a decimal string. */
 	paid_amount?: string;
+	/** Amount confirmed for this payment in a Checkout Pro order. */
+	confirmed_amount?: string;
+	/** Authorization code returned for a Checkout Pro payment. */
+	authorization_code?: string;
+	/** Tip amount returned for a Point payment. */
+	tip_amount?: string;
+	/** Taxes amount returned when processing a Checkout API payment. */
+	taxes_amount?: string;
+	/** Card details returned for a Point payment. */
+	card?: PaymentCardResponse;
 	/** Total amount refunded for this payment as a decimal string. */
 	refunded_amount?: string;
 	/** Payment provider or acquirer identifier. */
@@ -315,6 +372,26 @@ export declare type PaymentResponse = {
 	/** Discounts applied at the payment level. */
 	discounts?: DiscountResponse[];
 }
+
+/** Card details returned with a Point order payment. */
+export declare type PaymentCardResponse = {
+	id?: string;
+	first_six_digits?: string;
+	last_four_digits?: string;
+	expiration_month?: number;
+	expiration_year?: number;
+	cardholder?: {
+		name?: string;
+		identification?: Identification;
+	};
+};
+
+/** Cash-out transaction returned with a QR CA order. */
+export declare type CashOutResponse = {
+	id?: string;
+	amount?: string;
+	status?: string;
+};
 
 /**
  * Automatic (recurring) payment settings for subscription-style charges.
@@ -426,6 +503,8 @@ export declare type PaymentMethodResponse = {
 	token?: string;
 	/** Number of installments selected by the buyer. */
 	installments?: number;
+	/** Amount per installment as a decimal string. */
+	installment_amount?: string;
 	/** Text that appears on the buyer's card statement. */
 	statement_descriptor?: string;
 	/** URL where the buyer can view or print the payment ticket (boleto). */

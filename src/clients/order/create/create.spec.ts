@@ -1,5 +1,6 @@
 import { RestClient } from '@utils/restClient';
 import { MercadoPagoConfig } from '@src/mercadoPagoConfig';
+import { Order } from '..';
 
 import type { OrderCreateClient, CreateOrderRequest } from './types';
 import create from '.';
@@ -410,5 +411,231 @@ describe('Create Order — Checkout PRO', () => {
 				body: expect.stringContaining('"apartment":"B"')
 			})
 		);
+	});
+});
+
+describe('Create Order successful responses', () => {
+	test('returns the Checkout API shipment and the 201 response envelope', async () => {
+		const config = new MercadoPagoConfig({ accessToken: 'access_token' });
+		const body: CreateOrderRequest = { type: 'online', total_amount: '100.00' };
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: { status: 201, headers: ['Content-Type', ['application/json']] },
+			id: 'ORD-CHECKOUT',
+			status: 'created',
+			shipment: {
+				mode: 'custom', cost: '10.00',
+				address: { zip_code: '01310-100', floor: '3', apartment: 'B' }
+			}
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(config).create({ body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', expect.objectContaining({
+			method: 'POST', body: JSON.stringify(body)
+		}));
+		expect(result.api_response.status).toBe(201);
+		expect(result.api_response.headers).toEqual(['Content-Type', ['application/json']]);
+		expect(result.status).toBe('created');
+		expect(result.shipment.address.floor).toBe('3');
+		expect(result.shipment.address.apartment).toBe('B');
+	});
+});
+
+describe('Public Order.create variant request contracts', () => {
+	const http = { status: 201, headers: ['Content-Type', ['application/json']] };
+
+	test('Checkout API sends location, callback and 3DS settings with merged options', async () => {
+		const config = new MercadoPagoConfig({ accessToken: 'access_token', options: { timeout: 5000 } });
+		const body: CreateOrderRequest = {
+			type: 'online', total_amount: '100.00',
+			config: {
+				location: { state_id: 'BR-SP' },
+				online: {
+					callback_url: 'https://example.com/callback',
+					transaction_security: { validation: 'always', liability_shift: 'required' }
+				}
+			},
+			transactions: { payments: [{ amount: '100.00', payment_method: {
+				id: 'visa', type: 'credit_card', token: 'card_token',
+				transaction_security: { validation: 'on_fraud_risk', liability_shift: 'preferred' }
+			} }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: http, id: 'ORD-CHECKOUT', status: 'created',
+			transactions: { payments: [{ id: 'PAY-CHECKOUT', amount: '100.00' }] }
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(config).create({ body, requestOptions: { timeout: 7000 } });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, timeout: 7000,
+			body: JSON.stringify(body)
+		});
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body)).toEqual(body);
+		expect(result.api_response).toEqual(http);
+		expect(result.transactions.payments[0].id).toBe('PAY-CHECKOUT');
+	});
+
+	test('Split 1:N sends receiver allocations', async () => {
+		const body: CreateOrderRequest = {
+			type: 'online', total_amount: '500.00',
+			config: { location: { state_id: 'BR-SP' } },
+			splits: [
+				{ receiver_id: 'OWNER_USER_ID', receiver_type: 'owner', amount: '250.00', description: 'Primary' },
+				{ receiver_id: 'PARTNER_CONSENT_UUID', receiver_type: 'partner', amount: '250.00', description: 'Secondary' }
+			],
+			transactions: { payments: [{ amount: '500.00', payment_method: { id: 'visa', type: 'credit_card' } }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: http, id: 'ORD-SPLIT', status: 'created',
+			transactions: { payments: [{ id: 'PAY-SPLIT', amount: '500.00' }] }
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' })).create({ body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, body: JSON.stringify(body)
+		});
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body)).toEqual(body);
+		expect(result.api_response.status).toBe(201);
+		expect(result.transactions.payments[0].id).toBe('PAY-SPLIT');
+	});
+
+	test('Point sends terminal configuration', async () => {
+		const body: CreateOrderRequest = {
+			type: 'point', total_amount: '14.00', config: { point: { terminal_id: 'TERM-001' } },
+			transactions: { payments: [{ amount: '14.00' }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: http, id: 'ORD-POINT', type: 'point', status: 'created',
+			config: { point: { terminal_id: 'TERM-001' } }
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' })).create({ body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, body: JSON.stringify(body)
+		});
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body)).toEqual(body);
+		expect(result.api_response.status).toBe(201);
+		expect(result.config.point.terminal_id).toBe('TERM-001');
+	});
+
+	test('QR sends POS, tax and discount fields', async () => {
+		const body: CreateOrderRequest = {
+			type: 'qr', total_amount: '25.00', config: { qr: { external_pos_id: 'POS-001' } },
+			taxes: [{ payer_condition: 'registered', type: 'IVA', value: '2.00' }],
+			discounts: { payment_methods: [{ type: 'account_money', new_total_amount: '23.00' }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: http, id: 'ORD-QR', type: 'qr', status: 'created',
+			config: { qr: { external_pos_id: 'POS-001' } }, type_response: { qr_data: '000201' }
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' })).create({ body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, body: JSON.stringify(body)
+		});
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body)).toEqual(body);
+		expect(result.api_response.status).toBe(201);
+		expect(result.type_response.qr_data).toBe('000201');
+	});
+
+	test('QR CA sends cash-out transactions separately from returned cash-outs', async () => {
+		const body: CreateOrderRequest = {
+			type: 'qr', total_amount: '25.00', config: { qr: { external_pos_id: 'POS-CA' } },
+			transactions: { cash_outs: [{ amount: '25.00' }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: http, id: 'ORD-QR-CA', type: 'qr', status: 'created',
+			transactions: { cash_outs: [{ id: 'CASH-CA', amount: '25.00', status: 'created' }] }
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' })).create({ body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, body: JSON.stringify(body)
+		});
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body)).toEqual(body);
+		expect(result.api_response.status).toBe(201);
+		expect(result.transactions.cash_outs[0].id).toBe('CASH-CA');
+	});
+});
+
+describe('Public Order.create serialized variant fixtures', () => {
+	test('Checkout API serializes location, callback URL and online 3DS independently of the response', async () => {
+		const config = new MercadoPagoConfig({ accessToken: 'access_token', options: { timeout: 5000 } });
+		const body: CreateOrderRequest = {
+			type: 'online', total_amount: '100.00',
+			config: {
+				location: { state_id: 'BR-SP' },
+				online: {
+					callback_url: 'https://merchant.com/pse/return',
+					transaction_security: { validation: 'on_fraud_risk', liability_shift: 'required' }
+				}
+			},
+			transactions: { payments: [{ amount: '100.00', payment_method: { id: 'visa', type: 'credit_card' } }] }
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: { status: 201, headers: ['Content-Type', ['application/json']] },
+			id: 'ORD-CHECKOUT-3DS', status: 'created'
+		};
+		const spyFetch = jest.spyOn(RestClient, 'fetch').mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(config).create({ body, requestOptions: { timeout: 7000 } });
+
+		expect(spyFetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' }, timeout: 7000,
+			body: JSON.stringify({
+				type: 'online', total_amount: '100.00',
+				config: {
+					location: { state_id: 'BR-SP' },
+					online: {
+						callback_url: 'https://merchant.com/pse/return',
+						transaction_security: { validation: 'on_fraud_risk', liability_shift: 'required' }
+					}
+				},
+				transactions: { payments: [{ amount: '100.00', payment_method: { id: 'visa', type: 'credit_card' } }] }
+			})
+		});
+		expect(result.id).toBe('ORD-CHECKOUT-3DS');
+		expect(result.api_response.status).toBe(201);
+	});
+
+	test('Split 1:N serializes receiver allocations through the public method', async () => {
+		const body: CreateOrderRequest = {
+			type: 'online', total_amount: '500.00',
+			splits: [
+				{ receiver_id: 'OWNER_USER_ID', receiver_type: 'owner', amount: '250.00', description: 'Primary' },
+				{ receiver_id: 'PARTNER_CONSENT_UUID', receiver_type: 'partner', amount: '250.00', description: 'Secondary' }
+			]
+		};
+		const fixture: import('../commonTypes').OrderResponse = {
+			api_response: { status: 201, headers: ['Content-Type', ['application/json']] },
+			id: 'ORD-SPLIT-FIXTURE', status: 'created'
+		};
+		const spyFetch = jest.spyOn(RestClient, 'fetch').mockResolvedValue(fixture);
+
+		const result: import('../commonTypes').OrderResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' })).create({ body });
+
+		expect(spyFetch).toHaveBeenCalledWith('/v1/orders', {
+			method: 'POST', headers: { Authorization: 'Bearer access_token' },
+			body: JSON.stringify({
+				type: 'online', total_amount: '500.00',
+				splits: [
+					{ receiver_id: 'OWNER_USER_ID', receiver_type: 'owner', amount: '250.00', description: 'Primary' },
+					{ receiver_id: 'PARTNER_CONSENT_UUID', receiver_type: 'partner', amount: '250.00', description: 'Secondary' }
+				]
+			})
+		});
+		expect(result.id).toBe('ORD-SPLIT-FIXTURE');
+		expect(result.api_response.status).toBe(201);
 	});
 });
