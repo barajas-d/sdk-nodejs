@@ -65,3 +65,57 @@ describe('Create Order transaction', () => {
 		expect(createdTransaction).toEqual(mockResponse);
 	});
 });
+
+describe('Public Order transaction payment methods', () => {
+	test('transmits the typed POST request and returns typed payment method details with SDK metadata', async () => {
+		const { Order } = await import('../..');
+		const body: OrderCreateTransactionRequest = {
+			payments: [{ amount: '100.00', payment_method: { id: 'master', financial_institution: 'bank-123' } }]
+		};
+		const responseMethod: import('../../commonTypes').PaymentMethodResponse = {
+			id: 'master', financial_institution: 'bank-123', installment_amount: '50.00'
+		};
+		const fixture: TransactionsApiResponse = {
+			api_response: { status: 201, headers: ['Content-Type', ['application/json']] },
+			payments: [{ id: 'PAY-POST', amount: '100.00', payment_method: responseMethod }]
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: TransactionsApiResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' }))
+			.createTransaction({ id: 'ORD-POST', body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders/ORD-POST/transactions', expect.objectContaining({
+			method: 'POST', body: JSON.stringify(body)
+		}));
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body).payments[0].payment_method.financial_institution).toBe('bank-123');
+		expect(result.api_response).toEqual({ status: 201, headers: ['Content-Type', ['application/json']] });
+		expect(result.payments[0].payment_method.financial_institution).toBe('bank-123');
+		expect(result.payments[0].payment_method.installment_amount).toBe('50.00');
+	});
+
+	test('transmits the typed PUT request and returns typed payment method details with SDK metadata', async () => {
+		const { Order } = await import('../..');
+		const body: import('../../commonTypes').PaymentRequest = {
+			payment_method: { id: 'master', financial_institution: 'bank-456' }
+		};
+		const responseMethod: import('../../commonTypes').PaymentMethodResponse = {
+			id: 'master', financial_institution: 'bank-456', installment_amount: '25.00'
+		};
+		const fixture: import('../../commonTypes').PaymentApiResponse = {
+			api_response: { status: 200, headers: ['Content-Type', ['application/json']] },
+			payment_method: responseMethod
+		};
+		(RestClient.fetch as jest.Mock).mockResolvedValue(fixture);
+
+		const result: import('../../commonTypes').PaymentApiResponse = await new Order(new MercadoPagoConfig({ accessToken: 'access_token' }))
+			.updateTransaction({ id: 'ORD-PUT', transactionId: 'PAY-PUT', body });
+
+		expect(RestClient.fetch).toHaveBeenCalledWith('/v1/orders/ORD-PUT/transactions/PAY-PUT', expect.objectContaining({
+			method: 'PUT', body: JSON.stringify(body)
+		}));
+		expect(JSON.parse((RestClient.fetch as jest.Mock).mock.calls[0][1].body).payment_method.financial_institution).toBe('bank-456');
+		expect(result.api_response).toEqual({ status: 200, headers: ['Content-Type', ['application/json']] });
+		expect(result.payment_method.financial_institution).toBe('bank-456');
+		expect(result.payment_method.installment_amount).toBe('25.00');
+	});
+});
